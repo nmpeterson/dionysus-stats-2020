@@ -1,0 +1,257 @@
+---
+title: "League of Dionysus 2020 Stats"
+author: "Noel Peterson"
+date: "`r format(Sys.time(), '%x')`"
+output: html_document
+knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_file = file.path(dirname(inputFile), 'index.html')) })
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  fig.retina = 4,
+  fig.align = "center",
+  out.width = "100%"
+)
+
+library(tidyverse)
+library(see)
+```
+
+```{r load-data, message=FALSE}
+# Read weekly scores and calculative cumulative score
+SCORES <- read_csv("./weekly_scores.csv") %>%
+  as_tibble() %>%
+  pivot_longer(cols=starts_with("Week"),
+               names_to="Week",
+               names_prefix="Week",
+               names_transform=list(Week=as.integer),
+               values_to="Score") %>%
+  group_by(Week) %>%
+  arrange(Week, Score) %>%
+  mutate(
+    Winner = if_else(Score == max(Score), 1, 0),
+    Rank = 8 - rank(Score, ties.method="max")
+  ) %>%
+  group_by(Team) %>%
+  arrange(Team, Week) %>%
+  mutate(
+    CumulativeScore = cumsum(Score),
+    CumulativeMeanScore = cummean(Score),
+    CumulativeWins = cumsum(Winner),
+    CumulativeWinnings = CumulativeWins * 9.24
+  ) %>%
+  group_by(Week) %>%
+  arrange(Week, CumulativeScore) %>%
+  mutate(CumulativeRank = 8 - rank(CumulativeScore, ties.method="max")) %>%
+  ungroup() %>%
+  arrange(Team, Week) %>%
+  mutate(Team = as_factor(Team))
+```
+
+
+## Standings and stats
+#### through Week `r max(SCORES$Week)`
+
+```{r summary}
+# Calculate summaries
+SUMMARY <- SCORES %>%
+  group_by(Team) %>%
+  summarize(
+    TotalScore = max(CumulativeScore),
+    MinScore = min(Score),
+    MaxScore = max(Score),
+    MeanScore = mean(Score),
+    SDScore = sd(Score),
+    MeanRank = mean(Rank),
+    SDRank = sd(Rank),
+    WeeklyWins = max(CumulativeWins),
+    Winnings = max(CumulativeWinnings),
+    .groups="drop"
+  )
+
+FIRST_WIN <- SCORES %>%
+  filter(CumulativeWins == 1, Winner == 1) %>%
+  select(Team, Week) %>%
+  rename(FirstWinWeek = Week)
+
+SUMMARY <- left_join(SUMMARY, FIRST_WIN, by="Team")
+
+SUMMARY %>%
+  arrange(desc(TotalScore)) %>%
+  transmute(
+    `Rank` = 8 - rank(TotalScore, ties.method="max"),
+    `Team` = Team,
+    `Total Score` = TotalScore,
+    `Wins` = WeeklyWins,
+    `Winnings` = Winnings,
+    `Average Score` = round(MeanScore, 2),
+    `Low Score` = MinScore,
+    `High Score` = MaxScore
+  ) %>%
+  knitr::kable(align='clrcrrrr')
+
+MEAN_WIN_SCORE <- SCORES %>% filter(Winner == 1) %>% .$Score %>% mean() %>% round(2)
+```
+
+The average weekly winning score has been **`r MEAN_WIN_SCORE`** points.
+
+<hr>
+
+## A series of charts
+
+```{r weekly-scores-line}
+# Plot weekly scores
+ggplot(SCORES, aes(x=Week, y=Score, color=Team)) +
+  geom_line(size=1) +
+  scale_x_continuous(breaks=1:17, expand=expansion(add=0)) +
+  scale_y_continuous(limits=c(0, max(SCORES$Score)+10), expand=expansion(add=0)) +
+  scale_color_see() +
+  theme_modern() +
+  labs(title="Weekly Scores", y=NULL)
+
+# # Plot weekly ranks
+# ggplot(SCORES, aes(x=Week, y=(-1*Rank), color=Team)) +
+#   geom_line(size=1) +
+#   scale_y_continuous(breaks=-1:-7, labels=1:7) +
+#   scale_x_continuous(breaks=1:17, expand=expansion(add=0)) +
+#   scale_color_see() +
+#   theme_modern() +
+#   labs(title="Weekly Finishes", y=NULL)
+```
+
+<hr style="width: 80%; height: 1px; background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,0.25), rgba(0,0,0,0));">
+
+```{r weekly-scores-heat}
+# Plot heat map of weekly scores
+left_join(SCORES, select(SUMMARY, Team, MeanScore), by="Team") %>%
+  ggplot(., aes(x=Week, y=fct_reorder(Team, MeanScore), fill=Score)) +
+    geom_raster() +
+    scale_x_continuous(breaks=1:17, expand=expansion(add=0)) +
+    scale_y_discrete(expand=expansion(add=0)) +
+    scale_fill_distiller(palette="YlGn", direction=1) +
+    theme_modern() +
+    labs(title="Heat Map of Weekly Scores", y=NULL)
+```
+
+<hr style="width: 80%; height: 1px; background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,0.25), rgba(0,0,0,0));">
+
+```{r cumulative-scores}
+# Plot cumulative scores
+ggplot(SCORES, aes(x=Week, y=CumulativeScore, color=Team)) +
+  geom_line(size=1) +
+  scale_x_continuous(breaks=1:17, expand=expansion(add=0)) +
+  scale_y_continuous(limits=c(0, max(SCORES$CumulativeScore)+10), expand=expansion(add=0),
+                     labels=scales::label_comma()) +
+  scale_color_see() +
+  theme_modern() +
+  labs(title="Total Scores Over Time", y=NULL)
+```
+
+<hr style="width: 80%; height: 1px; background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,0.25), rgba(0,0,0,0));">
+
+```{r cumulative-ranks}
+# Plot cumulative ranks
+ggplot(SCORES, aes(x=Week, y=(-1*CumulativeRank), color=Team)) +
+  geom_line(size=1) +
+  scale_y_continuous(breaks=-1:-7, labels=1:7) +
+  scale_x_continuous(breaks=1:17, expand=expansion(add=0)) +
+  scale_color_see() +
+  theme_modern() +
+  labs(title="Overall Standings Over Time", y=NULL)
+
+# # Plot cumulative mean scores
+# ggplot(SCORES, aes(x=Week, y=CumulativeMeanScore, color=Team)) +
+#   geom_line(size=1) +
+#   scale_x_continuous(breaks=1:17, expand=expansion(add=0)) +
+#   scale_y_continuous(limits=c(0, max(SCORES$CumulativeMeanScore)+10),
+#                      expand=expansion(add=0)) +
+#   scale_color_see() +
+#   theme_modern() +
+#   labs(title="Mean Scores Over Time", y=NULL)
+```
+
+<hr style="width: 80%; height: 1px; background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,0.25), rgba(0,0,0,0));">
+
+```{r cumulative-winnings}
+# Plot cumulative winnings
+# left_join(SCORES, select(SUMMARY, Team, FirstWinWeek), by="Team") %>%
+#   ggplot(., aes(x=Week, y=CumulativeWinnings,
+#              fill=fct_reorder(Team, FirstWinWeek))) +
+ggplot(SCORES, aes(x=Week, y=CumulativeWinnings, fill=Team)) +
+    geom_col(width=1) +
+    scale_x_continuous(breaks=1:17, expand=expansion(add=0)) +
+    scale_y_continuous(limits=c(0, 10*max(SCORES$Week)), expand=expansion(add=0),
+                       labels=scales::label_dollar()) +
+    scale_fill_see() +
+    theme_modern() +
+    labs(title="Total Winnings Over Time", y=NULL) +
+    guides(fill=guide_legend(title="Team"))
+```
+
+<hr style="width: 80%; height: 1px; background-image: linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,0.25), rgba(0,0,0,0));">
+
+```{r weekly-scores-freq}
+# Plot frequency distribution of weekly scores
+left_join(SCORES, select(SUMMARY, Team, MeanScore), by="Team") %>%
+  ggplot(., aes(x=Score, fill=Team)) +
+    geom_density(size=0) +
+    scale_x_continuous(limits=c(min(SCORES$Score), max(SCORES$Score)),
+                       breaks=seq(0, 300, 20),
+                       expand=expansion(add=0)) +
+    scale_y_continuous(expand=expansion(add=0)) +
+    facet_grid(rows=vars(fct_reorder(Team, MeanScore, .desc=TRUE)), switch="y") +
+    scale_fill_see() +
+    theme_modern(legend.position="none") +
+    labs(title="Frequency Distribution of Weekly Scores", y=NULL) +
+    guides(fill=guide_legend(title="Team")) +
+    theme(axis.line.y=element_blank(), axis.text.y=element_blank(),
+          strip.text.y.left=element_text(size=13, angle=0,face="plain", hjust=1))
+
+# left_join(SCORES, select(SUMMARY, Team, SDScore), by="Team") %>%
+#   ggplot(., aes(x=Score, fill=fct_reorder(Team, SDScore, .desc=TRUE))) +
+#   geom_density(position="stack", size=0) +
+#   scale_fill_see()
+#   theme_modern() +
+#   labs(title="Frequency Distribution of Weekly Scores", y="Probability") +
+#   guides(fill=guide_legend(title="Team"))
+```
+
+<hr>
+
+## So you're tellin' me there's a chance...
+
+```{r target}
+# Estimate what's needed for each team to win the Championship
+TARGET_SCORE <- SCORES %>%
+  filter(CumulativeScore == max(CumulativeScore)) %>%
+  left_join(SUMMARY, by="Team") %>%
+  mutate(Target = CumulativeScore + MeanScore * (17 - Week)) %>%
+  .$Target %>%
+  round(2)
+```
+
+The leading team is on pace to end the season with **`r TARGET_SCORE`** total points. The following table shows what each team would need to score in each of the remaining games to match that score.
+
+```{r catch-up}
+CATCH_UP <- SCORES %>%
+  filter(Week == max(Week)) %>%
+  left_join(SUMMARY, by="Team") %>%
+  select(Team, Week, CumulativeScore, MeanScore) %>%
+  mutate(
+    TargetMeanScore = (TARGET_SCORE - CumulativeScore) / (17 - Week),
+    PercentIncrease = (TargetMeanScore / MeanScore - 1) * 100
+  ) %>%
+  arrange(desc(CumulativeScore))
+
+CATCH_UP %>%
+  transmute(
+    `Team` = Team,
+    `Average Score` = round(MeanScore, 2),
+    `Target Score for Remaining Weeks` = round(TargetMeanScore, 2),
+    `Percent Improvement Needed` = round(PercentIncrease, 2)
+  ) %>%
+  knitr::kable()
+```
+
+Good luck, everyone!
