@@ -51,7 +51,7 @@ SCORES <- read_csv("./weekly_scores.csv") %>%
 
 
 ## Standings and stats
-#### through Week `r max(SCORES$Week)`
+#### Through Week `r max(SCORES$Week)`
 
 ```{r summary}
 # Calculate summaries
@@ -84,7 +84,7 @@ SUMMARY %>%
     `Team` = Team,
     `Total Score` = TotalScore,
     `Wins` = WeeklyWins,
-    `Winnings` = Winnings,
+    `Winnings` = sprintf("$%.2f", Winnings),
     `Average Score` = round(MeanScore, 2),
     `Low Score` = MinScore,
     `High Score` = MaxScore
