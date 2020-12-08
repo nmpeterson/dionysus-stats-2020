@@ -179,7 +179,7 @@ ggplot(SCORES, aes(x=Week, y=(-1*CumulativeRank), color=Team)) +
 #   ggplot(., aes(x=Week, y=CumulativeWinnings,
 #              fill=fct_reorder(Team, FirstWinWeek))) +
 ggplot(SCORES, aes(x=Week, y=CumulativeWinnings, fill=Team)) +
-    geom_col(width=1) +
+    geom_col(width=0.95) +
     scale_x_continuous(breaks=1:17, expand=expansion(add=0)) +
     scale_y_continuous(limits=c(0, 10*max(SCORES$Week)), expand=expansion(add=0),
                        labels=scales::label_dollar()) +
