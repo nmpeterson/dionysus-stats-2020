@@ -249,9 +249,9 @@ CATCH_UP %>%
     `Team` = Team,
     `Average Score` = round(MeanScore, 2),
     `Target Score for Remaining Weeks` = round(TargetMeanScore, 2),
-    `Percent Improvement Needed` = round(PercentIncrease, 2)
+    `Percent Improvement Needed` = sprintf("%.2f%%", PercentIncrease)
   ) %>%
-  knitr::kable()
+  knitr::kable(align="lrrr")
 ```
 
 Good luck, everyone!
