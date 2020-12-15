@@ -223,24 +223,26 @@ left_join(SCORES, select(SUMMARY, Team, MeanScore), by="Team") %>%
 
 ```{r target}
 # Estimate what's needed for each team to win the Championship
-TARGET_SCORE <- SCORES %>%
+LEADER <- SCORES %>%
   filter(CumulativeScore == max(CumulativeScore)) %>%
   left_join(SUMMARY, by="Team") %>%
-  mutate(Target = CumulativeScore + MeanScore * (17 - Week)) %>%
-  .$Target %>%
-  round(2)
+  mutate(Target = CumulativeScore + MeanScore * (17 - Week))
+
+LEADER_NAME <- LEADER %>% .$Team
+TARGET_SCORE <- LEADER %>% .$Target %>% round(2)
 ```
 
-The leading team is on pace to end the season with **`r TARGET_SCORE`** total points. The following table shows what each team would need to score in each of the remaining games to match that score.
+League leader **`r LEADER_NAME`** is on pace to end the season with **`r TARGET_SCORE`** total points. The following table shows what each team would need to score in each of the remaining games to match that score.
 
 ```{r catch-up}
 CATCH_UP <- SCORES %>%
   filter(Week == max(Week)) %>%
   left_join(SUMMARY, by="Team") %>%
   select(Team, Week, CumulativeScore, MeanScore) %>%
+  rowwise() %>%
   mutate(
     TargetMeanScore = (TARGET_SCORE - CumulativeScore) / (17 - Week),
-    PercentIncrease = (TargetMeanScore / MeanScore - 1) * 100
+    PercentIncrease = max((TargetMeanScore / MeanScore - 1) * 100, 0)
   ) %>%
   arrange(desc(CumulativeScore))
 
