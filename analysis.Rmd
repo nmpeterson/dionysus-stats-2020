@@ -1,6 +1,6 @@
 ---
 title: "League of Dionysus 2020 Stats"
-author: "Noel Peterson"
+author: "Commissioner's Report"
 date: "`r format(Sys.time(), '%x')`"
 output: html_document
 knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_file = file.path(dirname(inputFile), 'index.html')) })
@@ -50,7 +50,7 @@ SCORES <- read_csv("./weekly_scores.csv") %>%
 ```
 
 
-## Standings and stats
+## Standings & stats
 #### Through Week `r max(SCORES$Week)`
 
 ```{r summary}
@@ -251,7 +251,7 @@ CATCH_UP %>%
     `Team` = Team,
     `Average Score` = round(MeanScore, 2),
     `Target Score for Remaining Weeks` = round(TargetMeanScore, 2),
-    `Percent Improvement Needed` = sprintf("%.2f%%", PercentIncrease)
+    `Percent Improvement Needed` = sprintf("%.0f%%", PercentIncrease)
   ) %>%
   knitr::kable(align="lrrr")
 ```
