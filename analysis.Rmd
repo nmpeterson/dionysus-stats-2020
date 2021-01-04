@@ -39,7 +39,7 @@ SCORES <- read_csv("./weekly_scores.csv") %>%
     CumulativeScore = cumsum(Score),
     CumulativeMeanScore = cummean(Score),
     CumulativeWins = cumsum(Winner),
-    CumulativeWinnings = CumulativeWins * 9.24
+    CumulativeWinnings = CumulativeWins * 9.24 + ifelse(Week == 17 & Rank == 1, 157.5, 0)
   ) %>%
   group_by(Week) %>%
   arrange(Week, CumulativeScore) %>%
@@ -181,8 +181,7 @@ ggplot(SCORES, aes(x=Week, y=(-1*CumulativeRank), color=Team)) +
 ggplot(SCORES, aes(x=Week, y=CumulativeWinnings, fill=Team)) +
     geom_col(width=0.95) +
     scale_x_continuous(breaks=1:17, expand=expansion(add=0)) +
-    scale_y_continuous(limits=c(0, 10*max(SCORES$Week)), expand=expansion(add=0),
-                       labels=scales::label_dollar()) +
+    scale_y_continuous(labels=scales::label_dollar()) +
     scale_fill_see() +
     theme_modern() +
     labs(title="Total Winnings Over Time", y=NULL) +
@@ -195,7 +194,7 @@ ggplot(SCORES, aes(x=Week, y=CumulativeWinnings, fill=Team)) +
 # Plot frequency distribution of weekly scores
 left_join(SCORES, select(SUMMARY, Team, MeanScore), by="Team") %>%
   ggplot(., aes(x=Score, fill=Team)) +
-    geom_density(size=0) +
+    geom_density(color=NA) +
     scale_x_continuous(limits=c(min(SCORES$Score), max(SCORES$Score)),
                        breaks=seq(0, 300, 20),
                        expand=expansion(add=0)) +
@@ -219,6 +218,7 @@ left_join(SCORES, select(SUMMARY, Team, MeanScore), by="Team") %>%
 
 <hr>
 
+`r ifelse(max(SCORES$Week) < 17, "", "<!-- Hide this section after week 17")`
 ## So you're tellin' me there's a chance...
 
 ```{r target}
@@ -257,3 +257,16 @@ CATCH_UP %>%
 ```
 
 Good luck, everyone!
+`r ifelse(max(SCORES$Week) < 17, "", "-->")`
+
+
+`r ifelse(max(SCORES$Week) == 17, "", "<!-- Hide this section before week 17")`
+```{r winner}
+WINNER_NAME <- SCORES %>%
+  filter(CumulativeScore == max(CumulativeScore)) %>%
+  left_join(SUMMARY, by="Team") %>%
+  .$Team
+```
+
+#### Congrats on the championship, `r WINNER_NAME`, and thanks to everyone for another great season!
+`r ifelse(max(SCORES$Week) == 17, "", "-->")`
